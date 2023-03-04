@@ -1,18 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.8.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.14" />
+    <PackageReference Include="MediatR" Version="12.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="7.0.3" />
     <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.1.0" />
-    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.OpenApi" Version="1.5.1" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.10.1" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.0.13" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.OpenApi" Version="1.5.1" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.7.0" />
     <PackageReference Include="Microsoft.Graph" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="6.0.0" />
-    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.1.3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="7.0.3" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="6.0.1" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
@@ -24,6 +28,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Infrastructure\" />
+    <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
   </ItemGroup>
 </Project>
