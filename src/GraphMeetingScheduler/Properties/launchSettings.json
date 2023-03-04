@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "GraphMeetingScheduler.Functions": {
+    "GraphMeetingScheduler": {
       "commandName": "Project",
       "commandLineArgs": "--port 7004",
       "launchBrowser": false
