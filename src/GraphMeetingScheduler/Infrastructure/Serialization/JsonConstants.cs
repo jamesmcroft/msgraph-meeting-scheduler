@@ -13,7 +13,7 @@ public static class JsonConstants
         SerializerSettings = new JsonSerializerSettings
         {
             ContractResolver = new CamelCasePropertyNamesContractResolver(),
-            DefaultValueHandling = DefaultValueHandling.Populate,
+            DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate,
             Formatting = Formatting.Indented
         };
         SerializerSettings.Converters.Add(new StringEnumWithDefaultConverter());

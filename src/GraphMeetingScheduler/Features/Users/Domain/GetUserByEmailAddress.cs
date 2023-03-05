@@ -1,4 +1,4 @@
-namespace GraphMeetingScheduler.Features.Scheduling.Domain;
+namespace GraphMeetingScheduler.Features.Users.Domain;
 
 using GraphMeetingScheduler.Infrastructure.Requests;
 using GraphMeetingScheduler.Infrastructure.Responses;
@@ -17,21 +17,24 @@ public class GetUserByEmailAddressHandler : IRequestHandler<GetUserByEmailAddres
 
     public async Task<Response<User?>> Handle(Request request, CancellationToken cancellationToken)
     {
-        UserCollectionResponse? users = await this.graphClient.Users
-            .GetAsync(configuration => configuration.QueryParameters.Filter = $"mail eq '{request.EmailAddress}'",
+        UserCollectionResponse? usersResponse = await this.graphClient.Users
+            .GetAsync(configuration =>
+                {
+                    configuration.QueryParameters.Filter = $"mail eq '{request.EmailAddress}'";
+                },
                 cancellationToken);
 
-        if (users?.Value == null || users.Value.Count == 0)
+        if (usersResponse?.Value == null || usersResponse.Value.Count == 0)
         {
             return Response.NotFound(new ResponseErrorMessage("UserNotFound", new { request.EmailAddress }));
         }
 
-        return users.Value.FirstOrDefault();
+        return usersResponse.Value.FirstOrDefault();
     }
 
     public class Request : MediatorRequest<User?>
     {
-        public Request(string emailAddress)
+        public Request(string emailAddress, Guid? correlationId = default) : base(correlationId)
         {
             this.EmailAddress = emailAddress;
         }
