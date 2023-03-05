@@ -8,9 +8,9 @@ using Microsoft.Graph.Models;
 using Microsoft.Graph.Users.Item.Calendar.GetSchedule;
 using Models;
 using Users.Domain;
+using User = Users.Models.User;
 
-public class GetUserScheduleByEmailAddressHandler : IRequestHandler<GetUserScheduleByEmailAddressHandler.Request,
-    Response<UserSchedule?>>
+public class GetUserScheduleByEmailAddressHandler : IRequestHandler<GetUserScheduleByEmailAddressHandler.Request, Response<UserSchedule>>
 {
     private readonly GraphServiceClient graphClient;
     private readonly IMediator mediator;
@@ -21,10 +21,9 @@ public class GetUserScheduleByEmailAddressHandler : IRequestHandler<GetUserSched
         this.mediator = mediator;
     }
 
-    public async Task<Response<UserSchedule?>> Handle(Request request, CancellationToken cancellationToken)
+    public async Task<Response<UserSchedule>> Handle(Request request, CancellationToken cancellationToken)
     {
-        Response<User?> user = await this.mediator.Send(new GetUserByEmailAddressHandler.Request(request.EmailAddress),
-            cancellationToken);
+        Response<User> user = await this.mediator.Send(new GetUserByEmailAddressHandler.Request(request.EmailAddress), cancellationToken);
         if (user is not { Error: null })
         {
             return Response.NotFound(user.Error.Value);
@@ -43,16 +42,16 @@ public class GetUserScheduleByEmailAddressHandler : IRequestHandler<GetUserSched
             .GetSchedule
             .PostAsync(scheduleRequest, cancellationToken: cancellationToken);
 
-        if (scheduleResponse?.Value == null || scheduleResponse.Value.Count == 0)
+        if (scheduleResponse?.Value == null || scheduleResponse.Value.Count == 0 || scheduleResponse.Value.FirstOrDefault()?.WorkingHours == null)
         {
             return Response.NotFound(new ResponseErrorMessage("UserScheduleNotFound",
                 new { request.EmailAddress, request.StartDateTime, request.EndDateTime }));
         }
 
-        return new UserSchedule(user.Data, scheduleResponse.Value);
+        return UserSchedule.FromGraphSchedule(user.Data, request.StartDateTime, request.EndDateTime, scheduleResponse.Value);
     }
 
-    public class Request : MediatorRequest<UserSchedule?>
+    public class Request : MediatorRequest<UserSchedule>
     {
         public Request(
             string emailAddress,

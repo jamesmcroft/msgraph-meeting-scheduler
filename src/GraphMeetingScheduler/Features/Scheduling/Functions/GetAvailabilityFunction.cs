@@ -23,9 +23,12 @@ public class GetAvailabilityFunction : BaseFunction
     [Function(nameof(GetAvailabilityFunction))]
     [OpenApiOperation("GetAvailability", "Scheduling")]
     [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
-    [OpenApiParameter("email", In = ParameterLocation.Query, Required = true, Type = typeof(string[]), Description = "The email addresses of the users to get availability for.", Explode = true)]
-    [OpenApiParameter("start", In = ParameterLocation.Query, Required = true, Type = typeof(DateTime), Description = "The start date and time of the availability window in ISO 8601 format.")]
-    [OpenApiParameter("end", In = ParameterLocation.Query, Required = true, Type = typeof(DateTime), Description = "The end date and time of the availability window in ISO 8601 format.")]
+    [OpenApiParameter("email", In = ParameterLocation.Query, Required = true, Type = typeof(string[]),
+        Description = "The email addresses of the users to get availability for.", Explode = true)]
+    [OpenApiParameter("start", In = ParameterLocation.Query, Required = true, Type = typeof(DateTime),
+        Description = "The UTC start date and time of the availability window in ISO 8601 format.")]
+    [OpenApiParameter("end", In = ParameterLocation.Query, Required = true, Type = typeof(DateTime),
+        Description = "The UTC end date and time of the availability window in ISO 8601 format.")]
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Function, "get", Route = "scheduling/availability")]
         HttpRequestData req)
@@ -35,7 +38,7 @@ public class GetAvailabilityFunction : BaseFunction
         var emailAddresses = query["email"]?.Split(",").ToList();
         bool hasScheduleStart = DateTime.TryParse(query["start"], out DateTime scheduleStart);
         bool hasScheduleEnd = DateTime.TryParse(query["end"], out DateTime scheduleEnd);
-        
+
         if (emailAddresses is not { Count: > 1 })
         {
             return await ExecuteErrorResultAsync(req, HttpStatusCode.BadRequest,
@@ -46,22 +49,24 @@ public class GetAvailabilityFunction : BaseFunction
         if (!hasScheduleStart)
         {
             return await ExecuteErrorResultAsync(req, HttpStatusCode.BadRequest,
-                               new ResponseErrorMessage("AvailabilityStartRequired",
-                                                      "The start date and time of the availability window is required"));
+                new ResponseErrorMessage("AvailabilityStartRequired",
+                    "The start date and time of the availability window is required"));
         }
 
         if (!hasScheduleEnd)
         {
             return await ExecuteErrorResultAsync(req, HttpStatusCode.BadRequest,
-                                              new ResponseErrorMessage("AvailabilityEndRequired",
-                                                                                                       "The end date and time of the availability window is required"));
+                new ResponseErrorMessage("AvailabilityEndRequired",
+                    "The end date and time of the availability window is required"));
         }
 
-        var calendars = new List<UserSchedule>();
+        var userSchedules = new List<UserSchedule>();
 
         foreach (string? emailAddress in emailAddresses)
         {
-            Response<UserSchedule?> scheduleResponse = await this.Mediator.Send(new GetUserScheduleByEmailAddressHandler.Request(emailAddress, scheduleStart, scheduleEnd));
+            Response<UserSchedule> scheduleResponse =
+                await this.Mediator.Send(
+                    new GetUserScheduleByEmailAddressHandler.Request(emailAddress, scheduleStart, scheduleEnd));
 
             (bool success, HttpResponseData? errorResponse) = await ValidateResponseAsync(req, scheduleResponse);
             if (!success)
@@ -69,9 +74,18 @@ public class GetAvailabilityFunction : BaseFunction
                 return errorResponse!;
             }
 
-            calendars.Add(scheduleResponse.Data!);
+            userSchedules.Add(scheduleResponse.Data!);
         }
 
-        return await ExecuteResultAsync(req, HttpStatusCode.OK, calendars);
+        var crossSectionWorkingHours = userSchedules.SelectMany(schedule => schedule.WorkingHours)
+            .GroupBy(workingHours => workingHours.StartTimeUtc.Date)
+            .Select(workingHoursByDay => workingHoursByDay.Aggregate((x, y) =>
+                new UserWorkingHours
+                {
+                    StartTimeUtc = x.StartTimeUtc > y.StartTimeUtc ? x.StartTimeUtc : y.StartTimeUtc,
+                    EndTimeUtc = x.EndTimeUtc < y.EndTimeUtc ? x.EndTimeUtc : y.EndTimeUtc
+                })).ToList();
+
+        return await ExecuteResultAsync(req, HttpStatusCode.OK, crossSectionWorkingHours);
     }
 }

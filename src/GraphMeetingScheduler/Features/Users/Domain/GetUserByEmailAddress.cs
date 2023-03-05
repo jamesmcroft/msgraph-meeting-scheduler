@@ -5,8 +5,10 @@ using GraphMeetingScheduler.Infrastructure.Responses;
 using MediatR;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
+using QueryFilters;
+using User = Models.User;
 
-public class GetUserByEmailAddressHandler : IRequestHandler<GetUserByEmailAddressHandler.Request, Response<User?>>
+public class GetUserByEmailAddressHandler : IRequestHandler<GetUserByEmailAddressHandler.Request, Response<User>>
 {
     private readonly GraphServiceClient graphClient;
 
@@ -15,12 +17,12 @@ public class GetUserByEmailAddressHandler : IRequestHandler<GetUserByEmailAddres
         this.graphClient = graphClient;
     }
 
-    public async Task<Response<User?>> Handle(Request request, CancellationToken cancellationToken)
+    public async Task<Response<User>> Handle(Request request, CancellationToken cancellationToken)
     {
         UserCollectionResponse? usersResponse = await this.graphClient.Users
             .GetAsync(configuration =>
                 {
-                    configuration.QueryParameters.Filter = $"mail eq '{request.EmailAddress}'";
+                    configuration.QueryParameters.Filter = UserFilters.ByEmailAddress(request.EmailAddress);
                 },
                 cancellationToken);
 
@@ -29,10 +31,10 @@ public class GetUserByEmailAddressHandler : IRequestHandler<GetUserByEmailAddres
             return Response.NotFound(new ResponseErrorMessage("UserNotFound", new { request.EmailAddress }));
         }
 
-        return usersResponse.Value.FirstOrDefault();
+        return User.FromGraphUser(usersResponse.Value.FirstOrDefault()!);
     }
 
-    public class Request : MediatorRequest<User?>
+    public class Request : MediatorRequest<User>
     {
         public Request(string emailAddress, Guid? correlationId = default) : base(correlationId)
         {
