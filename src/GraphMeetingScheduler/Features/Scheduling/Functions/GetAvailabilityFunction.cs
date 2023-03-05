@@ -77,15 +77,22 @@ public class GetAvailabilityFunction : BaseFunction
             userSchedules.Add(scheduleResponse.Data!);
         }
 
-        var crossSectionWorkingHours = userSchedules.SelectMany(schedule => schedule.WorkingHours)
+        var scheduledMeetings = userSchedules.SelectMany(schedule => schedule.ScheduledItems).ToList();
+
+        // Compares all users calendars in UTC time to find overlapping availability, taking into consideration of existing scheduled meetings for each user.
+        var availabilityWithinWorkingHours = userSchedules.SelectMany(schedule => schedule.WorkingHours)
             .GroupBy(workingHours => workingHours.StartTimeUtc.Date)
             .Select(workingHoursByDay => workingHoursByDay.Aggregate((x, y) =>
                 new UserWorkingHours
                 {
                     StartTimeUtc = x.StartTimeUtc > y.StartTimeUtc ? x.StartTimeUtc : y.StartTimeUtc,
                     EndTimeUtc = x.EndTimeUtc < y.EndTimeUtc ? x.EndTimeUtc : y.EndTimeUtc
-                })).ToList();
+                }))
+            .Where(workingHours =>
+                !scheduledMeetings.Any(meeting =>
+                    meeting.StartTimeUtc < workingHours.EndTimeUtc && meeting.EndTimeUtc > workingHours.StartTimeUtc))
+            .ToList();
 
-        return await ExecuteResultAsync(req, HttpStatusCode.OK, crossSectionWorkingHours);
+        return await ExecuteResultAsync(req, HttpStatusCode.OK, availabilityWithinWorkingHours);
     }
 }

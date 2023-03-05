@@ -9,7 +9,7 @@ public class UserSchedule
 
     public IEnumerable<UserWorkingHours> WorkingHours { get; set; }
 
-    public IEnumerable<ScheduleItem> ScheduledItems { get; set; }
+    public IEnumerable<UserScheduleItem> ScheduledItems { get; set; }
 
     public static UserSchedule FromGraphSchedule(
         User user,
@@ -30,6 +30,6 @@ public class UserSchedule
                 scheduleWorkingHours.DaysOfWeek!.Any(scheduleDay => (int)scheduleDay! == (int)rangeDate.DayOfWeek))
             .Select(workingDay => UserWorkingHours.FromGraphWorkingHours(workingDay, scheduleWorkingHours));
 
-        return new UserSchedule { User = user, WorkingHours = userWorkingHours, ScheduledItems = scheduleItems };
+        return new UserSchedule { User = user, WorkingHours = userWorkingHours, ScheduledItems = scheduleItems.Select(UserScheduleItem.FromGraphScheduleItem) };
     }
 }
