@@ -23,19 +23,30 @@ public class GetAvailabilityFunction : BaseFunction
     [Function(nameof(GetAvailabilityFunction))]
     [OpenApiOperation("GetAvailability", "Scheduling")]
     [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "code", In = OpenApiSecurityLocationType.Query)]
-    [OpenApiParameter("email", In = ParameterLocation.Query, Required = true, Type = typeof(string[]), Description = "The email addresses of the users to get availability for.", Explode = true)]
-    [OpenApiParameter("start", In = ParameterLocation.Query, Required = true, Type = typeof(DateTime), Description = "The UTC start date and time of the availability window in ISO 8601 format.")]
-    [OpenApiParameter("end", In = ParameterLocation.Query, Required = true, Type = typeof(DateTime), Description = "The UTC end date and time of the availability window in ISO 8601 format.")]
-    [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(List<UserWorkingHours>), Description = "The availability of all users.")]
-    [OpenApiResponseWithBody(HttpStatusCode.BadRequest, "application/json", typeof(ResponseErrorMessage), Description = "Thrown when the request query does not contain the expected values.")]
-    [OpenApiResponseWithBody(HttpStatusCode.NotFound, "application/json", typeof(ResponseErrorMessage), Description = "Thrown when a user or their schedule could not be found.")]
-    public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "get", Route = "scheduling/availability")] HttpRequestData req)
+    [OpenApiParameter("email", In = ParameterLocation.Query, Required = true, Type = typeof(string[]),
+        Description = "The email addresses of the users to get availability for.", Explode = true)]
+    [OpenApiParameter("start", In = ParameterLocation.Query, Required = true, Type = typeof(DateTime),
+        Description = "The UTC start date and time of the availability window in ISO 8601 format.")]
+    [OpenApiParameter("end", In = ParameterLocation.Query, Required = true, Type = typeof(DateTime),
+        Description = "The UTC end date and time of the availability window in ISO 8601 format.")]
+    [OpenApiParameter("duration", In = ParameterLocation.Query, Required = false, Type = typeof(int),
+        Description = "The duration of the meeting in minutes.")]
+    [OpenApiResponseWithBody(HttpStatusCode.OK, "application/json", typeof(List<UserScheduleAvailability>),
+        Description = "The availability of all users.")]
+    [OpenApiResponseWithBody(HttpStatusCode.BadRequest, "application/json", typeof(ResponseErrorMessage),
+        Description = "Thrown when the request query does not contain the expected values.")]
+    [OpenApiResponseWithBody(HttpStatusCode.NotFound, "application/json", typeof(ResponseErrorMessage),
+        Description = "Thrown when a user or their schedule could not be found.")]
+    public async Task<HttpResponseData> Run(
+        [HttpTrigger(AuthorizationLevel.Function, "get", Route = "scheduling/availability")]
+        HttpRequestData req)
     {
         NameValueCollection query = HttpUtility.ParseQueryString(req.Url.Query);
 
         var emailAddresses = query["email"]?.Split(",").ToList();
         bool hasScheduleStart = DateTime.TryParse(query["start"], out DateTime scheduleStart);
         bool hasScheduleEnd = DateTime.TryParse(query["end"], out DateTime scheduleEnd);
+        bool hasDuration = int.TryParse(query["duration"], out int duration);
 
         if (emailAddresses is not { Count: > 1 })
         {
@@ -58,13 +69,19 @@ public class GetAvailabilityFunction : BaseFunction
                     "The end date and time of the availability window is required"));
         }
 
+        if (!hasDuration)
+        {
+            duration = 60;
+        }
+
         var userSchedules = new List<UserSchedule>();
 
         foreach (string? emailAddress in emailAddresses)
         {
             Response<UserSchedule> scheduleResponse =
                 await this.Mediator.Send(
-                    new GetUserScheduleByEmailAddressHandler.Request(emailAddress, scheduleStart, scheduleEnd));
+                    new GetUserScheduleByEmailAddressHandler.Request(emailAddress, scheduleStart, scheduleEnd,
+                        duration));
 
             (bool success, HttpResponseData? errorResponse) = await ValidateResponseAsync(req, scheduleResponse);
             if (!success)
@@ -75,22 +92,17 @@ public class GetAvailabilityFunction : BaseFunction
             userSchedules.Add(scheduleResponse.Data!);
         }
 
-        var scheduledMeetings = userSchedules.SelectMany(schedule => schedule.ScheduledItems).ToList();
+        // Compares all users schedules in UTC time to find matching availability slots.
+        IEnumerable<UserScheduleAvailability> allParticipantAvailability = userSchedules
+            .SelectMany(schedule => schedule.Availability)
+            .GroupBy(availability => new { availability.StartTimeUtc, availability.EndTimeUtc })
+            .Where(group => group.Count() == emailAddresses.Count)
+            .Select(availabilityMatchGroup => new UserScheduleAvailability
+            {
+                StartTimeUtc = availabilityMatchGroup.Key.StartTimeUtc,
+                EndTimeUtc = availabilityMatchGroup.Key.EndTimeUtc
+            });
 
-        // Compares all users calendars in UTC time to find overlapping availability, taking into consideration of existing scheduled meetings for each user.
-        var availabilityWithinWorkingHours = userSchedules.SelectMany(schedule => schedule.WorkingHours)
-            .GroupBy(workingHours => workingHours.StartTimeUtc.Date)
-            .Select(workingHoursByDay => workingHoursByDay.Aggregate((x, y) =>
-                new UserWorkingHours
-                {
-                    StartTimeUtc = x.StartTimeUtc > y.StartTimeUtc ? x.StartTimeUtc : y.StartTimeUtc,
-                    EndTimeUtc = x.EndTimeUtc < y.EndTimeUtc ? x.EndTimeUtc : y.EndTimeUtc
-                }))
-            .Where(workingHours =>
-                !scheduledMeetings.Any(meeting =>
-                    meeting.StartTimeUtc < workingHours.EndTimeUtc && meeting.EndTimeUtc > workingHours.StartTimeUtc))
-            .ToList();
-
-        return await ExecuteResultAsync(req, HttpStatusCode.OK, availabilityWithinWorkingHours);
+        return await ExecuteResultAsync(req, HttpStatusCode.OK, allParticipantAvailability);
     }
 }
