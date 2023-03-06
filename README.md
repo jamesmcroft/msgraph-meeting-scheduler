@@ -11,8 +11,6 @@ This is an experimentation project to understand the capabilities of the Microso
 
 The project contains an Azure Functions API that can check calendars of multiple users within a Microsoft 365 tenant based on a period of time, and find availability for the best time for a meeting. The request takes into consideration each participant's schedules, as well as including each individual's time zone to ensure that the times available are most convenient for everyone.
 
-Currently, the availability is based on 1 hour blocks of time.
-
 ## Using the Scheduler API
 
 You will need to create a new Azure AD application and grant it the following application permissions for the Microsoft Graph:
@@ -40,11 +38,12 @@ To get availability for a meeting, you can make a `GET` request to the `/api/sch
 - `start`: The UTC start date and time to get availability from in ISO 8601 format.
 - `end`: The UTC end date and time to get availability to in ISO 8601 format.
 - `email`: An email address per participant to include in the availability check.
+- `duration`: The expected duration for a meeting in minutes.
 
 For example, to get availability between 1st March 2023 9am until 15th March 2023 5pm, you could make the following request:
 
 ```http
-/api/scheduling/availability?start=2023-03-01T09:00:00Z&end=2023-03-15T17:00:00Z&email=james@croft.co.uk&email=tom@croft.co.uk
+/api/scheduling/availability?start=2023-03-01T09:00:00Z&end=2023-03-15T17:00:00Z&email=james@croft.co.uk&email=tom@croft.co.uk&duration=60
 ```
 
 The response will be a JSON object containing the availability for each participant.
