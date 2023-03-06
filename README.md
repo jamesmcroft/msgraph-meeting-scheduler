@@ -1,11 +1,12 @@
 # Microsoft Graph Meeting Scheduler
 
 [![Hackathon][badge_hackathon]][link_hackathon]
-[![github issues][badge_issues]][link_issues]
-[![github stars][badge_repo_stars]][link_repo]
-[![Language][badge_language]][link_repo]
-[![License][badge_license]][link_repo]
-[![github sponsor][badge_sponsor]][link_sponsor]
+[![GitHub Actions][badge_actions]][link_actions] 
+[![GitHub Issues][badge_issues]][link_issues]
+[![GitHub Stars][badge_repo_stars]][link_repo]
+[![Repo Language][badge_language]][link_repo]
+[![Repo License][badge_license]][link_repo]
+[![GitHub Sponsor][badge_sponsor]][link_sponsor]
 
 This is an experimentation project to understand the capabilities of the Microsoft Graph APIs including user mailboxes, calendars, and how Teams meetings could be scheduled.
 
@@ -85,3 +86,5 @@ As many developers know, projects like this are built in spare time! If you find
 [link_issues]: https://github.com/jamesmcroft/msgraph-meeting-scheduler/issues
 [link_repo]: https://github.com/jamesmcroft/msgraph-meeting-scheduler
 [link_sponsor]: https://github.com/sponsors/jamesmcroft
+[badge_actions]: https://img.shields.io/github/actions/workflow/status/jamesmcroft/msgraph-meeting-scheduler/ci.yml?style=for-the-badge
+[link_actions]: https://github.com/jamesmcroft/msgraph-meeting-scheduler
